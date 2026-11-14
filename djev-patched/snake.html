@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>djev Snake</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      padding: 16px;
+    }
+
+    .wrap {
+      width: 760px;
+      max-width: 100%;
+      margin: 0 auto;
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    /* Single non-wrapping top bar: zero layout shift */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      height: 40px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      gap: 12px;
+    }
+
+    .top-left {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .title {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: 148px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #475569;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+    .dot.live { background: #16a34a; }
+    .dot.warn { background: #d97706; }
+    .dot.err { background: #dc2626; }
+
+    .metrics {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 14px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+    .metric-label {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .metric-val {
+      color: #0f172a;
+      font-weight: 700;
+      display: inline-block;
+      text-align: right;
+    }
+    #m-score { width: 24px; }
+    #m-steps { width: 32px; }
+    #m-ms { width: 44px; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    button {
+      height: 30px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #btn-start {
+      width: 88px;
+      background: #0969da;
+      color: #ffffff;
+      border: 1px solid #0969da;
+    }
+    #btn-start:hover {
+      background: #0757b8;
+    }
+
+    #btn-reset {
+      width: 72px;
+      background: #f8fafc;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+    }
+    #btn-reset:hover {
+      background: #f1f5f9;
+    }
+
+    /* Main 2-column layout: 360px canvas + 360px right column */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .board-box {
+      width: 360px;
+      height: 360px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    canvas#board {
+      display: block;
+      width: 360px;
+      height: 360px;
+    }
+
+    .right-col {
+      height: 360px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .panel {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: #0f172a;
+    }
+
+    .probs-panel {
+      height: 173px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .json-panel {
+      height: 175px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .panel-sub {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #475569;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .prob-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .prob-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 52px 46px;
+      align-items: center;
+      gap: 8px;
+      height: 24px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dir-name {
+      color: #475569;
+      font-weight: 600;
+    }
+    .dir-name.chosen {
+      color: #0969da;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #94a3b8;
+      border-radius: 4px;
+      transition: width 80ms linear;
+    }
+    .bar-fill.chosen {
+      background: #0969da;
+    }
+
+    .prob-pct {
+      text-align: right;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .prob-pct.dim {
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .safety-tag {
+      text-align: right;
+      font-size: 11px;
+      color: #15803d;
+      font-weight: 600;
+    }
+    .safety-tag.blocked {
+      color: #dc2626;
+    }
+
+    pre#live-json {
+      flex: 1;
+      margin: 0;
+      padding: 8px 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.42;
+      color: #0f172a;
+      overflow: hidden;
+      white-space: pre;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .j-key { color: #0550ae; font-weight: 600; }
+    .j-str { color: #116329; }
+    .j-num { color: #953800; font-weight: 600; }
+
+    @media (max-width: 720px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+      .board-box, canvas#board {
+        width: 100%;
+        max-width: 360px;
+      }
+    }
+  </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="djev-theme">
+  :root { --djnav-max: 1128px; --djnav-pad: 24px; }
+  .djnav { background: #fff; border-bottom: 1px solid #ececec; position: sticky; top: 0; z-index: 50;
+    font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; font-feature-settings: "calt" 0, "liga" 0; }
+  .djnav-in { max-width: var(--djnav-max, 1100px); margin: 0 auto; padding: 10px var(--djnav-pad, 24px);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; box-sizing: border-box; }
+  .djnav-brand { font-weight: 700; font-size: 15px; color: #111; text-decoration: none; letter-spacing: -0.01em; }
+  .djnav-seg { display: flex; align-items: center; gap: 2px; background: #f3f3f3; border-radius: 999px; padding: 4px; }
+  .djnav-a { display: inline-block; padding: 6px 16px; border-radius: 999px; font-size: 14px; font-weight: 500; line-height: 1.4;
+    color: #5e5e5e; text-decoration: none; white-space: nowrap; }
+  .djnav-a:hover { color: #111; background: #e6e6e6; }
+  .djnav-a.on { background: #76b900; color: #111; font-weight: 600; }
+  .djnav-sep { width: 1px; height: 18px; background: #d4d4d4; margin: 0 6px; }
+  .djnav-left { display: flex; align-items: baseline; gap: 18px; min-width: 0; }
+  .djnav-live { font-size: 13px; color: #8a8a8a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .djnav-live b { color: #111; font-weight: 600; }
+  .djnav-live.bump b { color: #4e7d00; }
+  @media (max-width: 760px) { .djnav-live { display: none; } }
+  @media (max-width: 520px) { .djnav-brand { display: none; } .djnav-in { justify-content: center; } .djnav-a { padding: 6px 12px; } }
+
+  html, body { background: #fff; color: #111; font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; font-size: 14px; font-feature-settings: "calt" 0, "liga" 0; }
+  body { padding: 0; }
+  .wrap { width: auto; max-width: 1128px; padding: 32px 24px 48px; }
+  .main-grid { grid-template-columns: 520px minmax(0, 1fr); gap: 24px; }
+  .board-box, canvas#board { width: 520px; height: 520px; }
+  .right-col { height: 520px; gap: 16px; }
+  .probs-panel { height: auto; flex: 0 0 auto; gap: 10px; }
+  .json-panel { height: auto; flex: 1 1 auto; min-height: 0; }
+  @media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } .board-box, canvas#board { width: 100%; max-width: 520px; height: auto; aspect-ratio: 1 / 1; } .right-col { height: auto; } .json-panel { min-height: 180px; } }
+  .topbar { height: auto; padding-bottom: 16px; margin-bottom: 20px; border-bottom-color: #ececec; }
+  .title { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: #111; }
+  .status { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; color: #8a8a8a; font-size: 13px; width: auto; }
+  .dot { display: none; }
+  .metrics { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+  .metric-label { color: #8a8a8a; font-weight: 400; }
+  .metric-val { color: #111; }
+  button { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; height: 36px; border-radius: 999px; }
+  #btn-start { width: auto; padding: 0 20px; background: #76b900; border: 0; color: #111; }
+  #btn-start:hover { background: #6aa600; }
+  #btn-reset { width: auto; padding: 0 18px; background: #f3f3f3; border: 0; color: #2e2e2e; }
+  #btn-reset:hover { background: #e9e9e9; }
+  .board-box { background: #fff; border: 1px solid #ececec; border-radius: 12px; }
+  .panel { background: #fff; border: 1px solid #ececec; border-radius: 12px; color: #111; }
+  .panel-head { color: #111; font-size: 13px; }
+  .panel-sub { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; color: #8a8a8a; font-size: 12px; }
+  .prob-row { font-family: Inter, -apple-system, "Helvetica Neue", "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+  .dir-name { color: #5e5e5e; }
+  .dir-name.chosen { color: #111; }
+  .bar-track { background: #f3f3f3; height: 6px; border-radius: 999px; }
+  .bar-fill { background: #cdcdcd; border-radius: 999px; }
+  .bar-fill.chosen { background: #76b900; }
+  .prob-pct { color: #111; }
+  .prob-pct.dim { color: #8a8a8a; }
+  .safety-tag { color: #4e7d00; }
+  .safety-tag.blocked { color: #b42318; }
+  pre#live-json { background: #f3f3f3; border: 0; border-radius: 8px; color: #2e2e2e; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .j-key { color: #111; } .j-str { color: #4e7d00; } .j-num { color: #5e5e5e; }
+</style>
+</head>
+<body>
+<nav class="djnav" aria-label="djev pages"><div class="djnav-in"><div class="djnav-left"><a class="djnav-brand" href="/lab">djev</a><span class="djnav-live" title="Answers the djev model has served on this server, read from its own metrics. It goes up with every game move and every decision."><b id="djnav-count">…</b> live answers from djev</span></div><div class="djnav-seg"><a href="/lab" class="djnav-a">Lab</a><span class="djnav-sep" aria-hidden="true"></span><a href="/snake" class="djnav-a on" aria-current="page">Snake</a><a href="/tetris" class="djnav-a">Tetris</a><a href="/dino" class="djnav-a">Dino</a></div></div></nav><script>(function(){var el=document.getElementById("djnav-count"),last=-1;async function tick(){if(document.hidden)return;try{var r=await fetch("/metrics",{cache:"no-store"});if(!r.ok)return;var n=0,found=false;(await r.text()).split("\n").forEach(function(l){if(l.indexOf("vllm:request_success_total")===0){found=true;n+=parseFloat(l.split(" ").pop())||0;}});if(!found)return;n=Math.round(n);if(last>=0&&n>last){el.parentNode.classList.add("bump");setTimeout(function(){el.parentNode.classList.remove("bump")},600);}last=n;el.textContent=n.toLocaleString();}catch(e){el.textContent="–";}}tick();setInterval(tick,5000);document.addEventListener("visibilitychange",tick);})();</script>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="top-left">
+        <span class="title">Snake</span>
+        <span class="status">
+          <span id="dot" class="dot"></span>
+          <span id="status-text">Idle</span>
+        </span>
+      </div>
+
+      <div class="metrics">
+        <span class="metric">
+          <span class="metric-label">Score</span>
+          <span id="m-score" class="metric-val">0</span>
+        </span>
+        <span class="metric">
+          <span class="metric-label">Step</span>
+          <span id="m-steps" class="metric-val">0</span>
+        </span>
+        <span class="metric">
+          <span class="metric-label">Latency</span>
+          <span id="m-ms" class="metric-val">0 ms</span>
+        </span>
+      </div>
+
+      <div class="top-actions">
+        <button id="btn-start" type="button">Start</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="board-box">
+        <canvas id="board"></canvas>
+      </div>
+
+      <div class="right-col">
+        <div class="panel probs-panel">
+          <div class="panel-head">
+            <span>Move Probabilities</span>
+            <span id="choice-badge" class="panel-sub">choice: right (50.0%)</span>
+          </div>
+          <div class="prob-rows">
+            <div class="prob-row">
+              <span class="dir-name" id="name-up">↑ up</span>
+              <div class="bar-track"><div class="bar-fill" id="bar-up"></div></div>
+              <span class="prob-pct dim" id="val-up">25.0%</span>
+              <span class="safety-tag" id="safe-up">safe</span>
+            </div>
+            <div class="prob-row">
+              <span class="dir-name" id="name-down">↓ down</span>
+              <div class="bar-track"><div class="bar-fill" id="bar-down"></div></div>
+              <span class="prob-pct dim" id="val-down">25.0%</span>
+              <span class="safety-tag" id="safe-down">safe</span>
+            </div>
+            <div class="prob-row">
+              <span class="dir-name" id="name-left">← left</span>
+              <div class="bar-track"><div class="bar-fill" id="bar-left"></div></div>
+              <span class="prob-pct dim" id="val-left">0.0%</span>
+              <span class="safety-tag blocked" id="safe-left">neck</span>
+            </div>
+            <div class="prob-row">
+              <span class="dir-name chosen" id="name-right">→ right</span>
+              <div class="bar-track"><div class="bar-fill chosen" id="bar-right"></div></div>
+              <span class="prob-pct" id="val-right">50.0%</span>
+              <span class="safety-tag" id="safe-right">safe</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel json-panel">
+          <div class="panel-head">
+            <span>Last model call</span>
+            <span id="coords-text" class="panel-sub">head [5,6] · food [9,3]</span>
+          </div>
+          <pre id="live-json"></pre>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#8a8a8a;text-align:right;padding-top:16px;">
+      Built on <a href="https://github.com/mmastrac/djev-spark" target="_blank" rel="noopener" style="color:#475569;">mmastrac/djev-spark</a>
+    </div>
+  </div>
+
+<script>
+const THINK = "<|channel>thought\n<channel|>";
+const CLOUD_RUN_URL = "https://<your-cloud-run-url>"; // Replace with your Cloud Run service URL (or leave as-is when opened at /snake on Cloud Run)
+const GRID = 12;
+const CSS_SIZE = 520;
+const DIRS = ["up", "down", "left", "right"];
+const ARROWS = { up: "↑", down: "↓", left: "←", right: "→" };
+const VEC = {
+  up: [0, -1],
+  down: [0, 1],
+  left: [-1, 0],
+  right: [1, 0]
+};
+
+const QUESTIONS_SCHEMA = {
+  move: {
+    type: "choice",
+    instructions: "Select the next move for the snake head. Choose recommended_safe_move in safe_moves that reduces manhattan_to_food while preserving open_space.",
+    criteria: {
+      up: "Move north (y - 1)",
+      down: "Move south (y + 1)",
+      left: "Move west (x - 1)",
+      right: "Move east (x + 1)"
+    }
+  }
+};
+
+const $ = id => document.getElementById(id);
+
+function resolveBaseUrl() {
+  if (location.protocol.startsWith("http") && !location.hostname.includes("artifax")) {
+    return "";
+  }
+  return CLOUD_RUN_URL.replace(/\/+$/, "");
+}
+
+const _tokCache = new Map();
+async function callDiffusionChatCompletions(payload, baseUrl = "") {
+  const qs = [];
+  for (const [qid, qspec] of Object.entries(payload.questions || {})) {
+    const qtype = qspec.type || "choice";
+    const crit = qspec.criteria;
+    let opts = [], labels = [];
+    if (qtype === "choice") {
+      opts = Array.isArray(crit) ? crit.map(x => [String(x), null]) : Object.entries(crit || {});
+      labels = opts.map((_, i) => String.fromCharCode(97 + i));
+    } else if (qtype === "score") {
+      opts = (crit || []).map(x => [String(x), String(x)]);
+      labels = opts.map((_, i) => String(i + 1));
+    } else {
+      opts = [["yes", null], ["no", null]];
+      labels = ["yes", "no"];
+    }
+    qs.push({ id: qid, type: qtype, instructions: qspec.instructions || "", choices: opts, labels });
+  }
+  let sysText = "Answer a fixed set of questions about the state the user provides. Each question lists its allowed answers; reply with exactly one label per question.\n";
+  for (const q of qs) {
+    sysText += `\nQuestion ${q.id}: ${q.instructions.trim()}\n`;
+    q.choices.forEach(([name, desc], idx) => {
+      const lbl = q.labels[idx];
+      if (q.type === "noul") sysText += `  ${lbl}\n`;
+      else if (desc) sysText += `  ${lbl}: ${name} (${String(desc).trim()})\n`;
+      else sysText += `  ${lbl}: ${name}\n`;
+    });
+  }
+  sysText += '\nReply with one line per question, in this order, formatted as "id: label".';
+  const baseStr = qs.map(q => `${q.id}: ${q.labels[0]}`).join("\n");
+  const altStr = qs.map(q => `${q.id}: ${q.labels[Math.min(1, q.labels.length - 1)]}`).join("\n");
+  const cacheKey = `${baseUrl}|${baseStr}|${altStr}`;
+  let tpl = _tokCache.get(cacheKey);
+  if (!tpl) {
+    const tokData = { tokens: await Promise.all([THINK + baseStr, THINK + altStr].map(async (prompt) => {
+      const r = await fetch(`${baseUrl}/tokenize`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, add_special_tokens: false }) });
+      if (!r.ok) throw new Error(`tokenize HTTP ${r.status}`);
+      return (await r.json()).tokens;
+    })) };
+    const baseToks = tokData.tokens[0];
+    const altToks = tokData.tokens[1];
+    const slotPositions = [], pinned = [];
+    for (let i = 0; i < baseToks.length; i++) {
+      if (baseToks[i] !== altToks[i]) slotPositions.push(i);
+      else pinned.push(i);
+    }
+    tpl = { baseToks, slotPositions, pinned };
+    _tokCache.set(cacheKey, tpl);
+  }
+  const seedCanvas = tpl.baseToks.slice();
+  while (seedCanvas.length < 128) seedCanvas.push(1);
+  for (const pos of tpl.slotPositions) seedCanvas[pos] = Math.floor(Math.random() * 262144);
+  const chatBody = {
+    model: "djev-dgemma",
+    messages: [
+      { role: "system", content: sysText },
+      { role: "user", content: typeof payload.state === "string" ? payload.state : JSON.stringify(payload.state) }
+    ],
+    max_tokens: tpl.baseToks.length,
+    logprobs: true,
+    top_logprobs: 20,
+    vllm_xargs: {
+      diffusion_seed_canvas: seedCanvas,
+      diffusion_pinned: tpl.pinned,
+      diffusion_max_steps: payload.steps || 1,
+      diffusion_read_only: true
+    }
+  };
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(chatBody)
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  const content = data.choices?.[0]?.logprobs?.content || [];
+  const answers = {};
+  qs.forEach((q, qi) => {
+    const pos = tpl.slotPositions[qi];
+    const topList = content[pos]?.top_logprobs || [];
+    const lpMap = {};
+    for (const item of topList) {
+      const t = (item.token || "").trim();
+      if (lpMap[t] === undefined || item.logprob > lpMap[t]) lpMap[t] = item.logprob;
+    }
+    const vals = Object.values(lpMap);
+    const floor = (vals.length ? Math.min(...vals) : -20.0) - 5.0;
+    const lpT = q.labels.map(lbl => lpMap[lbl] ?? floor);
+    const mx = Math.max(...lpT);
+    const ex = lpT.map(x => Math.exp(x - mx));
+    const sumEx = ex.reduce((a, b) => a + b, 0) || 1;
+    const probs = ex.map(e => e / sumEx);
+    const pDict = {};
+    let bestIdx = 0;
+    q.choices.forEach(([name], i) => {
+      pDict[name] = probs[i];
+      if (probs[i] > probs[bestIdx]) bestIdx = i;
+    });
+    answers[q.id] = { choice: q.choices[bestIdx][0], probabilities: pDict, confidence: probs[bestIdx] };
+  });
+  return { answers, diagnostics: { timing: { total_ms: data.timing_ms || 0 } }, chat_request: chatBody };
+}
+
+let snake = [];
+let direction = "right";
+let nextChoice = "right";
+let food = [9, 3];
+let score = 0;
+let steps = 0;
+let alive = true;
+let running = false;
+let inflight = false;
+
+function spawnFood(body) {
+  const occupied = new Set(body.map(([x, y]) => x + "," + y));
+  const free = [];
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (!occupied.has(x + "," + y)) free.push([x, y]);
+    }
+  }
+  if (!free.length) return [0, 0];
+  const idx = (steps * 17 + score * 31 + 7) % free.length;
+  return free[idx];
+}
+
+function floodFillCount(startX, startY, bodySet) {
+  const startKey = startX + "," + startY;
+  if (startX < 0 || startX >= GRID || startY < 0 || startY >= GRID || bodySet.has(startKey)) {
+    return 0;
+  }
+  const visited = new Set([startKey]);
+  const queue = [[startX, startY]];
+  while (queue.length > 0) {
+    const [cx, cy] = queue.shift();
+    for (const d of DIRS) {
+      const [vx, vy] = VEC[d];
+      const nx = cx + vx, ny = cy + vy;
+      const k = nx + "," + ny;
+      if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && !bodySet.has(k) && !visited.has(k)) {
+        visited.add(k);
+        queue.push([nx, ny]);
+      }
+    }
+  }
+  return visited.size;
+}
+
+function buildState() {
+  const [hx, hy] = snake[0];
+  const [fx, fy] = food;
+  const dx = fx - hx;
+  const dy = fy - hy;
+  const bodyObstacles = new Set(snake.slice(0, -1).map(([x, y]) => x + "," + y));
+  const [nxNeck, nyNeck] = snake[1] || [-1, -1];
+
+  const safeMoves = [];
+  const moveAnalysis = {};
+
+  for (const d of DIRS) {
+    const [vx, vy] = VEC[d];
+    const tx = hx + vx;
+    const ty = hy + vy;
+    let reason = "safe";
+    if (tx === nxNeck && ty === nyNeck) {
+      reason = "neck";
+    } else if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) {
+      reason = "wall";
+    } else if (bodyObstacles.has(tx + "," + ty)) {
+      reason = "body";
+    }
+    const isSafe = reason === "safe";
+    const dist = Math.abs(fx - tx) + Math.abs(fy - ty);
+    const space = isSafe ? floodFillCount(tx, ty, bodyObstacles) : 0;
+    if (isSafe) safeMoves.push(d);
+    moveAnalysis[d] = {
+      safe: isSafe,
+      reason,
+      manhattan_to_food: dist,
+      open_space: space,
+      reduces_distance: dist < (Math.abs(dx) + Math.abs(dy))
+    };
+  }
+
+  let bestMove = safeMoves[0] || direction;
+  let bestScore = -1e9;
+  for (const d of safeMoves) {
+    const info = moveAnalysis[d];
+    const s = info.open_space * 2 - info.manhattan_to_food * 5 + (d === direction ? 0.5 : 0);
+    if (s > bestScore) {
+      bestScore = s;
+      bestMove = d;
+    }
+  }
+
+  return {
+    head: [hx, hy],
+    food: [fx, fy],
+    food_delta: {
+      dx,
+      dy,
+      preferred_horizontal: dx > 0 ? "right" : (dx < 0 ? "left" : "aligned"),
+      preferred_vertical: dy > 0 ? "down" : (dy < 0 ? "up" : "aligned")
+    },
+    safe_moves: safeMoves,
+    move_analysis: moveAnalysis,
+    recommended_safe_move: bestMove
+  };
+}
+
+
+async function requestDecision(state) {
+  const reqBody = {
+    model: "djev-dgemma",
+    samples: 1,
+    steps: 1,
+    seed: 42 + steps,
+    state,
+    questions: QUESTIONS_SCHEMA
+  };
+  const t0 = performance.now();
+  try {
+    const data = await callDiffusionChatCompletions(reqBody, resolveBaseUrl());
+    const ms = Math.round(performance.now() - t0);
+    return { data, ms };
+  } catch (err) {
+    throw err;
+  }
+}
+
+function setStatus(text, kind) {
+  $("status-text").textContent = text;
+  $("dot").className = "dot" + (kind ? " " + kind : "");
+}
+
+function renderJson(state, finalChoice, probs) {
+  const safeList = state.safe_moves.map(m => `<span class="j-str">"${m}"</span>`).join(", ");
+  const conf = (probs[finalChoice] || 0).toFixed(3);
+  $("live-json").innerHTML =
+`{
+  <span class="j-key">"state"</span>: {
+    <span class="j-key">"head"</span>: [<span class="j-num">${state.head[0]}</span>, <span class="j-num">${state.head[1]}</span>], <span class="j-key">"food"</span>: [<span class="j-num">${state.food[0]}</span>, <span class="j-num">${state.food[1]}</span>],
+    <span class="j-key">"food_delta"</span>: { <span class="j-key">"dx"</span>: <span class="j-num">${state.food_delta.dx}</span>, <span class="j-key">"dy"</span>: <span class="j-num">${state.food_delta.dy}</span> },
+    <span class="j-key">"safe_moves"</span>: [${safeList}]
+  },
+  <span class="j-key">"move"</span>: { <span class="j-key">"choice"</span>: <span class="j-str">"${finalChoice}"</span>, <span class="j-key">"confidence"</span>: <span class="j-num">${conf}</span> }
+}`;
+}
+
+function updateUI(state, probs, finalChoice, ms) {
+  $("m-score").textContent = String(score);
+  $("m-steps").textContent = String(steps);
+  $("m-ms").textContent = `${ms} ms`;
+
+  const [hx, hy] = state.head;
+  const [fx, fy] = state.food;
+  $("coords-text").textContent = `head [${hx},${hy}] · food [${fx},${fy}]`;
+
+  const chosenPct = ((probs[finalChoice] || 0) * 100).toFixed(1) + "%";
+  $("choice-badge").textContent = `choice: ${finalChoice} (${chosenPct})`;
+
+  for (const d of DIRS) {
+    const p = Math.max(0, Math.min(1, Number(probs[d] || 0)));
+    const pct = (p * 100).toFixed(1) + "%";
+    const info = state.move_analysis[d];
+    const isSelected = d === finalChoice;
+
+    $("name-" + d).className = "dir-name" + (isSelected ? " chosen" : "");
+    $("name-" + d).textContent = `${ARROWS[d]} ${d}`;
+
+    const safeEl = $("safe-" + d);
+    safeEl.textContent = info.safe ? "safe" : info.reason;
+    safeEl.className = "safety-tag" + (info.safe ? "" : " blocked");
+
+    const barEl = $("bar-" + d);
+    barEl.style.width = (p * 100).toFixed(1) + "%";
+    barEl.className = "bar-fill" + (isSelected ? " chosen" : "");
+
+    $("val-" + d).className = "prob-pct" + (isSelected ? "" : " dim");
+    $("val-" + d).textContent = pct;
+  }
+
+  renderJson(state, finalChoice, probs);
+}
+
+function drawBoard() {
+  const canvas = $("board");
+  const dpr = window.devicePixelRatio || 1;
+  const targetW = Math.round(CSS_SIZE * dpr);
+  if (canvas.width !== targetW || canvas.height !== targetW) {
+    canvas.width = targetW;
+    canvas.height = targetW;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  const W = CSS_SIZE;
+  const H = CSS_SIZE;
+  const cell = W / GRID;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = "#f1f1f1";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < GRID; i++) {
+    const p = Math.floor(i * cell) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, H);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(W, p);
+    ctx.stroke();
+  }
+
+  // Target food
+  const [fx, fy] = food;
+  const fcx = (fx + 0.5) * cell;
+  const fcy = (fy + 0.5) * cell;
+  ctx.fillStyle = "#111111";
+  ctx.beginPath();
+  ctx.arc(fcx, fcy, cell * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Snake segments
+  for (let i = snake.length - 1; i >= 0; i--) {
+    const [sx, sy] = snake[i];
+    const isHead = i === 0;
+    ctx.fillStyle = isHead ? "#4e7d00" : "#76b900";
+    ctx.globalAlpha = isHead ? 1.0 : Math.max(0.45, 0.9 - (i / (snake.length + 5)) * 0.45);
+    const pad = isHead ? cell * 0.09 : cell * 0.14;
+    ctx.beginPath();
+    ctx.roundRect(sx * cell + pad, sy * cell + pad, cell - pad * 2, cell - pad * 2, isHead ? 5 : 4);
+    ctx.fill();
+
+    if (isHead) {
+      ctx.globalAlpha = 1.0;
+      ctx.fillStyle = "#ffffff";
+      const [vx, vy] = VEC[direction] || [1, 0];
+      const hcx = (sx + 0.5) * cell;
+      const hcy = (sy + 0.5) * cell;
+      const fwd = cell * 0.16;
+      const side = cell * 0.13;
+      const px = -vy, py = vx;
+      ctx.beginPath();
+      ctx.arc(hcx + vx * fwd + px * side, hcy + vy * fwd + py * side, 1.8, 0, Math.PI * 2);
+      ctx.arc(hcx + vx * fwd - px * side, hcy + vy * fwd - py * side, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function applyMove(chosenDir) {
+  const [hx, hy] = snake[0];
+  const [vx, vy] = VEC[chosenDir];
+  const nx = hx + vx;
+  const ny = hy + vy;
+  const bodyObstacles = new Set(snake.slice(0, -1).map(([x, y]) => x + "," + y));
+
+  if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID || bodyObstacles.has(nx + "," + ny)) {
+    alive = false;
+    running = false;
+    $("btn-start").textContent = "Start";
+    setStatus("Collision", "err");
+    drawBoard();
+    return;
+  }
+
+  snake.unshift([nx, ny]);
+  direction = chosenDir;
+  if (nx === food[0] && ny === food[1]) {
+    score += 1;
+    food = spawnFood(snake);
+  } else {
+    snake.pop();
+  }
+  steps += 1;
+}
+
+function resetGame() {
+  running = false;
+  $("btn-start").textContent = "Start";
+  snake = [[5, 6], [4, 6], [3, 6], [2, 6]];
+  direction = "right";
+  nextChoice = "right";
+  score = 0;
+  steps = 0;
+  alive = true;
+  food = spawnFood(snake);
+  setStatus("Idle", "");
+  const st = buildState();
+  updateUI(st, { up: 0, down: 0, left: 0, right: 0 }, "", 0);
+  $("choice-badge").textContent = "waiting for djev";
+  $("live-json").textContent = "No call yet. Press Start.";
+  drawBoard();
+}
+
+async function stepOnce() {
+  if (inflight || !alive) return;
+  inflight = true;
+  const state = buildState();
+  let data, ms;
+  try {
+    ({ data, ms } = await requestDecision(state));
+  } catch (err) {
+    setStatus(`Model error: ${err.message} (retrying)`, "");
+    await new Promise(r => setTimeout(r, 500));
+    inflight = false;
+    return;
+  }
+  const moveAns = data.answers && data.answers.move;
+  if (!moveAns || !moveAns.probabilities || !moveAns.choice) {
+    setStatus("Model error: djev returned no move (retrying)", "");
+    inflight = false;
+    return;
+  }
+  const probs = moveAns.probabilities;
+  const rawChoice = moveAns.choice;
+
+  let finalChoice = rawChoice;
+  if (state.safe_moves.length > 0 && !state.safe_moves.includes(rawChoice)) {
+    finalChoice = state.safe_moves.reduce((a, b) => ((probs[a] || 0) >= (probs[b] || 0) ? a : b));
+  }
+  nextChoice = finalChoice;
+
+  applyMove(finalChoice);
+  if (alive) {
+    setStatus("Running (live model)", "live");
+  }
+  updateUI(state, probs, finalChoice, ms);
+  drawBoard();
+  inflight = false;
+}
+
+async function loop() {
+  while (running && alive) {
+    const tStart = performance.now();
+    await stepOnce();
+    if (!running || !alive) break;
+    const elapsed = performance.now() - tStart;
+    const wait = Math.max(0, 50 - elapsed);
+    if (wait > 0) {
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+}
+
+$("btn-start").onclick = () => {
+  if (!alive) resetGame();
+  running = !running;
+  $("btn-start").textContent = running ? "Pause" : "Start";
+  if (running) {
+    loop();
+  } else {
+    setStatus("Paused", "");
+  }
+};
+
+$("btn-reset").onclick = () => resetGame();
+
+window.addEventListener("keydown", e => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    $("btn-start").click();
+  } else if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    resetGame();
+  }
+});
+
+resetGame();
+</script>
+</body>
+</html>

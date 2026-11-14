@@ -1,0 +1,26 @@
+# djev Lab on one GPU host. Use ./deploy.sh: it creates .env (audit salt), downloads the pinned weights
+# and runs `docker compose up -d --build` for you.
+services:
+  djev:
+    build: .
+    image: djev-lab:local
+    container_name: ${DJEV_NAME:-djev}
+    restart: unless-stopped
+    ipc: host                      # the weights are copied into /dev/shm (about 18 GB)
+    ports:
+      # Put the port behind your provider's firewall or proxy (Brev ports, Cloudflare tunnel, ...).
+      # Without a proxy, visitors can't be told apart in the audit log.
+      - "${DJEV_BIND:-0.0.0.0}:${DJEV_PORT:-8080}:8080"
+    environment:
+      MODEL: /mnt/model/dgemma
+      DJEV_AUDIT_SALT: ${DJEV_AUDIT_SALT:?run ./deploy.sh first, it creates .env with the audit salt}
+    volumes:
+      - ${WEIGHTS_DIR:-./weights}/dgemma:/mnt/model/dgemma:ro
+      - ./blocklist.txt:/opt/dgemma/blocklist.txt:ro   # client ids to refuse; edit with `echo id >> blocklist.txt`
+    logging:
+      driver: json-file
+      options: { max-size: 50m, max-file: "10" }
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]

@@ -1,0 +1,9 @@
+# model weights (about 18 GB, downloaded by deploy.sh)
+weights/
+# private: audit salt and the live blocklist
+.env
+blocklist.txt
+# local junk
+__pycache__/
+*.pyc
+.DS_Store

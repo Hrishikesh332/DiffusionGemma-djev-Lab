@@ -1,0 +1,19 @@
+djev Lab
+Copyright 2026 the djev Lab authors
+
+This project includes and modifies files from djev-run (https://github.com/taeold/djev-run),
+licensed under the Apache License, Version 2.0 (see LICENSE). The base container image
+ghcr.io/taeold/djev-run is also from that project.
+
+Files derived from djev-run, and modified by scripts in this repository (patch_demos.py):
+  djev-patched/server.py    public gateway, audit log, empty-thinking answer canvas fix,
+                            request ids, /lab route, generic error messages
+  djev-patched/snake.html   live-model-only calls, no simulated fallback, shared nav, new styling
+  djev-patched/tetris.html  as above, plus readable placement descriptions; engine originally from
+                            trungdq88/jev-tetris (https://github.com/trungdq88/jev-tetris)
+  djev-patched/dino.html    as above, plus the benchmark comparison removed; game originally from
+                            virajbhartiya/laya-vs-jev (https://github.com/virajbhartiya/laya-vs-jev)
+The full list of changes is in README.md ("What this project changes in djev-run").
+
+Model weights: nvidia/diffusiongemma-26B-A4B-it-NVFP4 (https://huggingface.co/nvidia/diffusiongemma-26B-A4B-it-NVFP4),
+downloaded at deploy time under their own license; they are not included in this repository.
