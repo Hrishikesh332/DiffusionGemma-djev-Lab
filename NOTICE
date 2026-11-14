@@ -13,7 +13,7 @@ Files derived from djev-run, and modified by scripts in this repository (patch_d
                             trungdq88/jev-tetris (https://github.com/trungdq88/jev-tetris)
   djev-patched/dino.html    as above, plus the benchmark comparison removed; game originally from
                             virajbhartiya/laya-vs-jev (https://github.com/virajbhartiya/laya-vs-jev)
-The full list of changes is in README.md ("What this project changes in djev-run").
+The main changes are listed in README.md ("How it works").
 
 Model weights: nvidia/diffusiongemma-26B-A4B-it-NVFP4 (https://huggingface.co/nvidia/diffusiongemma-26B-A4B-it-NVFP4),
 downloaded at deploy time under their own license; they are not included in this repository.
